@@ -7,8 +7,8 @@ from pillow_heif import register_heif_opener
 register_heif_opener()
 
 CLR = "\x1B[0K"
-CURSOR_UP_FACTORY = lambda upLines : "\x1B[" + str(upLines) + "A"
-CURSOR_DOWN_FACTORY = lambda upLines : "\x1B[" + str(upLines) + "B"
+CURSOR_UP_FACTORY = lambda upLines: "\x1B[" + str(upLines) + "A"
+CURSOR_DOWN_FACTORY = lambda upLines: "\x1B[" + str(upLines) + "B"
 
 OrientationTagID = 274
 
@@ -47,7 +47,7 @@ def processFolder(root_folder: str, edited_word: str, optimize: int, out_folder:
 
     print("Total images found:", len(images))
 
-    for entry in progressBar(images, upLines = 2):
+    for entry in progressBar(images, upLines=2):
         metadata_path = entry[0]
         image_path = entry[1]
 
@@ -65,7 +65,7 @@ def processFolder(root_folder: str, edited_word: str, optimize: int, out_folder:
             print(CURSOR_UP_FACTORY(2), 'Photo format is not supported:', image_path, CLR, CURSOR_DOWN_FACTORY(2))
             errorCounter += 1
             continue
-        
+
         image = Image.open(image_path, mode="r").convert('RGB')
         image_exif = image.getexif()
         if OrientationTagID in image_exif:
@@ -88,13 +88,16 @@ def processFolder(root_folder: str, edited_word: str, optimize: int, out_folder:
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-        with open(metadata_path, encoding="utf8") as f: 
+        with open(metadata_path, encoding="utf8") as f:
             metadata = json.load(f)
 
         timeStamp = int(metadata['photoTakenTime']['timestamp'])
         if "exif" in image.info:
             new_exif = adjust_exif(image.info["exif"], metadata)
-            image.save(new_image_path, quality=optimize, exif=new_exif)
+            if new_exif is not None:
+                image.save(new_image_path, quality=optimize, exif=new_exif)
+            else:
+                image.save(new_image_path, quality=optimize)
         else:
             image.save(new_image_path, quality=optimize)
 
@@ -107,3 +110,28 @@ def processFolder(root_folder: str, edited_word: str, optimize: int, out_folder:
     print('Success', successCounter)
     print('Failed', errorCounter)
 
+if __name__ == "__main__":
+    import argparse
+
+    def dimension(s):
+        try:
+            width, height = map(int, s.split(','))
+            return (width, height)
+        except:
+            raise argparse.ArgumentTypeError("Dimension must be width,height")
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('source_folder')
+    parser.add_argument('output_folder')
+    parser.add_argument('-w', '--edited_word', default='edited', help="Google Photos 'edited' word translation")
+    parser.add_argument('-o', '--optimize', type=int, default=100, help='Optimalize the images (0 to 100), recommended: 75 (default: disabled)')
+    parser.add_argument('-m', '--max_dimension', type=dimension, help="Resize the image restricting the max width,height dimension")
+
+    args = parser.parse_args()
+
+    if not os.path.exists(args.source_folder):
+        print('Target folder doesn\'t exist')
+        exit()
+
+    processFolder(args.source_folder, args.edited_word, args.optimize, args.output_folder, args.max_dimension)

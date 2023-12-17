@@ -123,7 +123,16 @@ def set_date_exif(exif_dict, timestamp):
 def adjust_exif(exif_info, metadata):
     timeStamp = int(metadata['photoTakenTime']['timestamp'])
 
-    exif_dict = piexif.load(exif_info)
+    # Check if 'exif' key is present in exif_info
+    if exif_info:
+        try:
+            exif_dict = piexif.load(exif_info)
+        except Exception as e:
+            print(f"Error loading EXIF data: {e}")
+            return None
+    else:
+        # If 'exif' key is not present, return None
+        return None
 
     lat = metadata['geoData']['latitude']
     lng = metadata['geoData']['longitude']
@@ -133,3 +142,4 @@ def adjust_exif(exif_info, metadata):
     set_geo_exif(exif_dict, lat, lng, altitude)
 
     return piexif.dump(exif_dict)
+
